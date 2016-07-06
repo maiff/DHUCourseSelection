@@ -1,27 +1,29 @@
 东华大学选课文档
 ===============
-- [Test][index]hehe
 
-#### [index]:index.html
+#### 欢迎页面
+- URL : /index
 - 概括 : 使用帮助以及登陆
 - 按钮 :
-    - 登陆 -> [/login](#login)
-    - 留言 -> [/feedback](#feedback)
+    - 登陆
+    - 留言
 - 可选 : 链接->东华大学教务处
 
-#### <span id="login">登陆 </span>
+#### 登陆
+- URL : /login
 - 概括 : 登陆(弹窗形式 or 直接将form写在index.html中)
 - 参数(Post) :
     - UserID       -> 用户账号
     - UserPassword -> 用户密码
     - ActionURL    -> /login
 
-#### <span id="3">/home </span>
+#### 用户个人主页
+- URL : /home
 - 概括 : 用户个人主页
 - 内容 : 用户已申请排队选取课程
 - 链接 :
-    - [申请选课](#select)
-    - [按照选课序号选课](#commonselect)
+    - 用户选课界面
+    - 按照选课序号选课
 - JSON :
     - 目的 : 从数据库中读出该用户在网站上申请的课程并展示在页面上.
     - 格式 :
@@ -40,7 +42,8 @@
         - courseState : 课程状态(排队中 or 已选上 or 被取消)
         - queueNumber : 排队序号
 
-#### <span id="select">/home/select </span>
+#### 用户选课界面
+- URL : /home/select
 - 概括 : 用户选课界面
 - 内容 : 用户教学计划查询中本学期开设的课程(包括公共课程以及专业课程)
 - JSON :
@@ -112,7 +115,8 @@
         - 大学外语类URL /home/select/English
     - 传送数据也用JSON
 
-#### <span id="commonselect">/commonselect </span>
+#### 按照序号选课
+- URL : /commonselect
 - 概括 : 通过courseID查询课程并选课
 - 内容 : 查询框，发送请求后在查询框下面渲染出JSON格式的课程列表.
 - JSON :
@@ -130,7 +134,7 @@
         - 点击查询后用ajax的方式将input里面的内容发送出去
         - TargetURL -> /commonselect?courseName=...
 - 参数 :
-    - 与[/home/select](#select)发送参数的格式相同
+    - 与用户选课界面(/home/select)发送参数的格式相同
     - 参数说明 :
         - 点击提交后将数据以JSON的形式发送出去
         - TargetURL -> /register
@@ -138,7 +142,9 @@
     - 在无参数请求这个页面的状态下,页面的主体部分只有一个搜索框
     - 在点击搜索后，后端接受到courseName后返回JSON,将JSON渲染到页面上(页面其他部分不变),并产生发送按钮
     - 在用户选好课程以后点击发送将数据以JSON的格式发送到指定URL
-#### <span id="feedback">留言(联系我们) </span>
+
+#### 留言(联系我们)
+- URL : /feedback
 - 概括 : 获取用户意见
 - 参数(Post) :
     - Message -> 反馈信息，前端限制不要超过60个汉字
@@ -146,7 +152,8 @@
 - 备注 :
     - 做成弹窗形式
 
-#### <span id="6">错误信息 </span>
+#### 错误信息
+- URL : /errMessage
 - 概括 : 发生错误后重定向到错误信息
 - 备注 :
     - 可以留下联系方式，邮箱XXX
