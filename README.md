@@ -1,8 +1,8 @@
 东华大学选课文档
 ===============
-- [Test][index]
+- [Test][index]hehe
 
-#### <span id="index">index.html</span>
+#### [index]:index.html
 - 概括 : 使用帮助以及登陆
 - 按钮 :
     - 登陆 -> [/login](#login)
