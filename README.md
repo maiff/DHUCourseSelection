@@ -26,6 +26,9 @@
     - 按照选课序号选课
 - JSON :
     - 目的 : 从数据库中读出该用户在网站上申请的课程并展示在页面上.
+    - APIURL : /home?userstatus=0   
+        - userstatus = 0 则返回所有已选课程
+        - 其他值留着以后加其他功能
     - 格式 :
 ```
     {
@@ -48,6 +51,17 @@
 - 内容 : 用户教学计划查询中本学期开设的课程(包括公共课程以及专业课程)
 - JSON :
     - 目的 : 渲染可选课程
+    - APIURL :/home/select?coursetype=0  
+        - coursetype = 0 则返回所有的课程
+        - coursetype = 1 选修和必修
+        - coursetype = 2 政治法律
+        - coursetype = 3 自然科学
+        - coursetype = 4 文化素质
+        - coursetype = 5 体育
+        - coursetype = 6 外语
+        <!-- - coursetype = 7
+        - coursetype = 8 -->
+
     - 格式 :
 ```
     {
@@ -121,6 +135,7 @@
 - 内容 : 查询框，发送请求后在查询框下面渲染出JSON格式的课程列表.
 - JSON :
     - 目的 : 渲染用户请求的课程
+    - APIURL : /commonselect?courseName=...
     - 格式 :
 ```
         {"courseID":,"courseName":,"courseList":[
@@ -132,7 +147,6 @@
     - courseName  -> 课程名称
     - 参数说明 :
         - 点击查询后用ajax的方式将input里面的内容发送出去
-        - TargetURL -> /commonselect?courseName=...
 - 参数 :
     - 与用户选课界面(/home/select)发送参数的格式相同
     - 参数说明 :
