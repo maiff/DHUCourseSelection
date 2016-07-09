@@ -59,8 +59,6 @@
         - coursetype = 4 文化素质
         - coursetype = 5 体育
         - coursetype = 6 外语
-        <!-- - coursetype = 7
-        - coursetype = 8 -->
 
     - 格式 :
 ```
