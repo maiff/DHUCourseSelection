@@ -119,12 +119,6 @@
     - 数据做成按格式可收缩，层次和JSON相同,课程类型(如选课对照表里的政治法律那一栏)->课程名称->可选课程列表.
       [参考链接](http://zhidao.baidu.com/link?url=08Zuu4QEF_VI1yO4ck0qWfRzRGENZeyEodd_UYCbxm8JgocuxFBu9Ji3YdO4R8U6j5tFs9D5E36gI-WUNu8GE_)
     - 将选择做成复选框的形式，点击发送后用js处理成JSON格式
-    - 将公共课程做成ajax,避免页面过大(政治法律,文化素质,体育,大学外语类)
-        - JSON格式与上面的相同,默认只发送选修和必修两个类型，其余类型可以将action放在展开操作上，例如: 展开政治法律的时候才请求这个JSON
-        - 政治法律URL /home/select/policy
-        - 文化素质URL /home/select/culture
-        - 体育URL    /home/select/sport
-        - 大学外语类URL /home/select/English
     - 传送数据也用JSON
 
 #### 按照序号选课
