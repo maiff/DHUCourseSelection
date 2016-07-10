@@ -84,7 +84,7 @@
                     ...]}
                 {"courseID":,"courseName":,"courseList":[
                     {"courseNo":,"teacherName":,"courseInfo":
-                        [{"courseWeek":,"courseTime":},{"courseWeek":,"courseTime":}]}
+                        [{"courseWeek":,"courseTime":},{"courseWeek":,"courseTime":}...]}
                     {"courseNo":,"teacherName":,"courseInfo":
                         [{"courseWeek":,"courseTime":},{"courseWeek":,"courseTime":}...]}
                     ...]}
@@ -130,7 +130,8 @@
 - 内容 : 查询框，发送请求后在查询框下面渲染出JSON格式的课程列表.
 - JSON :
     - 目的 : 渲染用户请求的课程
-    - APIURL : /commonselect?courseName=...
+    - APIURL(Post) : /commonselect
+        - 参数: courseName
     - 格式 :
 ```
         {"courseID":,"courseName":,"courseList":[
