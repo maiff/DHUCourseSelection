@@ -83,8 +83,10 @@
                     {"courseNo":,"teacherName":,"courseWeek":,"courseTime":,}
                     ...]}
                 {"courseID":,"courseName":,"courseList":[
-                    {"courseNo":,"teacherName":,"courseWeek":,"courseTime":,}
-                    {"courseNo":,"teacherName":,"courseWeek":,"courseTime":,}
+                    {"courseNo":,"teacherName":,"courseInfo":
+                        [{"courseWeek":,"courseTime":},{"courseWeek":,"courseTime":}]}
+                    {"courseNo":,"teacherName":,"courseInfo":
+                        [{"courseWeek":,"courseTime":},{"courseWeek":,"courseTime":}...]}
                     ...]}
                 ...]
             },
