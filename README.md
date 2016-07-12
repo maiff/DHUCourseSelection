@@ -55,7 +55,7 @@
         - coursetype = 0 则返回所有的课程
         - coursetype = 1 选修和必修
         - coursetype = 2 政治法律
-        - coursetype = 3 自然科学
+        - coursetype = 3 自然科学 and 语言文字
         - coursetype = 4 文化素质
         - coursetype = 5 体育
         - coursetype = 6 外语
