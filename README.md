@@ -28,6 +28,7 @@
     - 目的 : 从数据库中读出该用户在网站上申请的课程并展示在页面上.
     - APIURL : /home?userstatus=0   
         - userstatus = 0 则返回所有已选课程
+        - 只接受Post请求
         - 其他值留着以后加其他功能
     - 格式 :
 ```
@@ -59,7 +60,7 @@
         - coursetype = 4 文化素质
         - coursetype = 5 体育
         - coursetype = 6 外语
-
+        - 只接受Post请求
     - 格式 :
 ```
     {
