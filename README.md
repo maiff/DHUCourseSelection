@@ -131,7 +131,7 @@
 - JSON :
     - 目的 : 渲染用户请求的课程
     - APIURL(Post) : /commonselect
-        - 参数: courseName
+        - 参数: courseID
     - 格式 :
 ```
         {"courseID":,"courseName":,"courseList":[
@@ -140,8 +140,9 @@
             ...]}
 ```
 - 参数 :
-    - courseName  -> 课程名称
+    - courseID  -> 课程序号
     - 参数说明 :
+        - 是课程序号而不是选课序号
         - 点击查询后用ajax的方式将input里面的内容发送出去
 - 参数 :
     - 与用户选课界面(/home/select)发送参数的格式相同
