@@ -10,18 +10,18 @@ import (
     "github.com/gorilla/sessions"
     "github.com/gorilla/securecookie"
 )
+type StudentRigisterCourse struct{
+    StudentID       string
+    CourseList      []RigisteredCourse
+}
 type RigisteredCourse struct{
     CourseID        string          `json:"courseID"`
     CourseName      string          `json:"courseName"`
     TeacherName     string          `json:"teacherName"`
-    CourseState     string          `json:"courseState"`
+    CourseState     int             `json:"courseState"`
     // 0 means the Course in the queue
     //1 means the Course finished
-    QueueNumber     string          `json:"queueNumber"`
-}
-type StudentRigisterCourse struct{
-    StudentID       string
-    CourseList      []RigisteredCourse
+    QueueNumber     int             `json:"queueNumber"`
 }
 type SelectLists struct{
     SelectList []RigisterCourse     `json:"SelectList"`
@@ -30,16 +30,20 @@ type RigisterCourse struct{
     CourseID        string          `json:"courseID"`
     CourseNo        string          `json:"courseNo"`
 }
-// type CourseSelectors struct{
-//     CourseID        string
-//     Course
-// }
+type RigisterCourseInfo struct{
+    StudentID   string
+    CourseNo    string
+    QueueNum    int
+}
 type StudentInfo struct{
     StudentID       string
     StudentPW       string
 }
 type ServePrimeFunc func (w http.ResponseWriter, req *http.Request)
 var (
+    courseInQueue                    = 0
+    courseDelete                     = -1
+    courseFinish                     = 1
     homeStatusList          []string = []string{"0"}
     homeSelectCourseType    []string = []string{"0","1","2","3","4","5","6"}
 )
@@ -77,11 +81,12 @@ func IndexFunc(r *render.Render) ServePrimeFunc{
         r.Text(w,http.StatusOK,"Hello World!This is the index of the website")
     }
 }
-func LoginFunc(r *render.Render,cLogin *mgo.Collection,store *sessions.CookieStore) ServePrimeFunc{
+func LoginFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         id := req.PostFormValue("UserID")
         pw := req.PostFormValue("UserPassword")
-        if validateLogin(id,pw,cLogin){
+        // cLogin := DBsession.C("StudentInfo")
+        if validateLogin(id,pw,nil){
             session,_ := store.Get(req,"sessionid")
             session.Values["stuid"] = id
             session.Save(req, w)
@@ -93,11 +98,16 @@ func LoginFunc(r *render.Render,cLogin *mgo.Collection,store *sessions.CookieSto
 }
 func validateLogin(id,pw string,cLogin *mgo.Collection) (flag bool){
     //TODO Test it from database or request to the school website
-    if id != "" && pw != ""{
-        _,err := strconv.Atoi(id)
-        if err == nil{
-            flag = true
+    var err error
+    err = cLogin.Find(bson.M{"studentid":id,"studentpw":pw})
+    if err != nil{
+        _,err = strconv.Atoi(id)
+        if err != nil{
+            return
         }
+        
+    }else{
+        flag = true
     }
     return
 }
@@ -158,8 +168,8 @@ func getrigisteredFunc(stuid string,cRigister *mgo.Collection) ([]RigisteredCour
     //TODO The collection will be nil here,so we will finish the database collection
     //and take it to the function
     return []RigisteredCourse{
-                RigisteredCourse{"131441","专业英语","李悦","0","1"},
-                RigisteredCourse{"130153","计算机网络","朱明","0","1"}},nil
+                RigisteredCourse{"131441","专业英语","李悦",0,1},
+                RigisteredCourse{"130153","计算机网络","朱明",0,1}},nil
 }
 func HomeSelectFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
@@ -259,11 +269,14 @@ func HomeRegisterFunc(DBsession *mgo.Database,store *sessions.CookieStore) Serve
 func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
     var err error
     var oldInfo StudentRigisterCourse
+    var rigisterlist map[string]RigisterCourseInfo
     rInfo := StudentRigisterCourse{StudentID:stuid}
     cTable := DBsession.C("CourseTable")
-    for _,coursevalue := range slist{
-        var courseContent CourseContent
+    cRigister := DBsession.C("RigisterInfo")
+    cCourseSelector := DBsession.C("CourseSelector")
+    for _,coursevalue := range slist.SelectList{
         var teachername string
+        var courseContent CourseContent
         err = cTable.Find(bson.M{"courseid":coursevalue.CourseID,"courselist.courseno":coursevalue.CourseNo}).One(&courseContent)
         //TODO roll back
         if err == nil{
@@ -273,27 +286,41 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
                     break
                 }
             }
-            rInfo.CourseList = append(rInfo.CourseList,RigisteredCourse{coursevalue.CourseID,courseContent.CourseName,teachername,"0"})
+            Squeuenum := getQueueNum(coursevalue.CourseID,coursevalue.CourseNo,cCourseSelector) + 1
+            rInfo.CourseList = append(rInfo.CourseList,RigisteredCourse{coursevalue.CourseID,courseContent.CourseName,teachername,courseInQueue,Squeuenum})
+            rigisterlist[coursevalue.CourseID] = RigisterCourseInfo{stuid,coursevalue.CourseNo,Squeuenum}
         }
     }
-    cRigister := DBsession.C("RigisterInfo")
-    err := cRigister.Find(bson.M{"studentid":stuid}).One(&oldInfo)
+    err = cRigister.Find(bson.M{"studentid":stuid}).One(&oldInfo)
     if err == nil{
         rInfo.CourseList = append(rInfo.CourseList,oldInfo.CourseList...)
         cRigister.Update(bson.M{"studentid":stuid},rInfo)
     }else{
         cRigister.Insert(rInfo)
     }
-    // cCourseSelector := DBsession.C("CourseSelector")
-    go func() {
-        cCourseSelector
-    }
     // take a goroutine to avoid blocking
     go func() {
+        for key,value := range rigisterlist{
+            CourseMap[key].mutex.Lock()
+            cCourseSelector.Insert(value)
+            CourseMap[key].mutex.Unlock()
+        }
         for _,value := range slist.SelectList{
             NotifyCourseID <- value.CourseID
         }
     }()
+    return
+}
+func getQueueNum(courseID,courseNo string,cCourseSelector *mgo.Collection) (num int){
+    var err error
+    CourseMap[courseID].mutex.RLock()
+    defer CourseMap[courseID].mutex.RUnlock()
+    for{
+        num,err = cCourseSelector.Find(bson.M{"CourseNo":courseNo}).Count()
+        if err == nil{
+            break
+        }
+    }
     return
 }
 func validateCourse(slist SelectLists,cTable *mgo.Collection) (flag bool){
