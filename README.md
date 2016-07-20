@@ -34,18 +34,31 @@
 ```
     {
         "RegisterCourse" : [
-            {"courseID": ,"courseName": ,"teacherName": ,"courseState": ,"queueNumber": ,},
-            {"courseID": ,"courseName": ,"teacherName": ,"courseState": ,"queueNumber": ,},
+            {"courseID": ,"courseNo": ,"courseName": ,"teacherName": ,"courseState": ,"queueNumber": ,},
+            {"courseID": ,"courseNo": ,"courseName": ,"teacherName": ,"courseState": ,"queueNumber": ,},
             ...]
     }
 ```
     - 参数说明 :
         - courseID : 课程序号
+        - courseNo : 选课序号
         - courseName : 课程名称
         - teacherName : 教师姓名
         - courseState : 课程状态(排队中 or 已选上 or 被取消)
         - queueNumber : 排队序号
-
+    - 备注 :
+        - 如果返回的map中值为空,说明用户为注册过任何课程
+        - 在每个课程后面添加一个按钮,如果课程状态为"排队中"则提供[删除](#删除选项),如果课程状态为"被取消"则提供重选(/home/register)
+#### 删除选项
+- URL : /home/delete
+- 概括 : 用户删除课程接口
+- 参数 :
+    - 目的 : 用户可以删除申请过的课程
+    - APIURL : /home/delete?courseNo=
+    - 参数说明 :
+        - courseid : 被删除的选课编号
+    - 只接受Post请求
+    - 完成之后重新后端重定向到/home
 #### 用户选课界面
 - URL : /home/select
 - 概括 : 用户选课界面

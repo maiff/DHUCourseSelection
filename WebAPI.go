@@ -16,6 +16,7 @@ type StudentRigisterCourse struct{
 }
 type RigisteredCourse struct{
     CourseID        string          `json:"courseID"`
+    CourseNo        string          `json:"courseNo"`
     CourseName      string          `json:"courseName"`
     TeacherName     string          `json:"teacherName"`
     CourseState     int             `json:"courseState"`
@@ -65,6 +66,7 @@ func InitServerMux(r *render.Render,mgoSession *mgo.Session) (*http.ServeMux,*se
     mux.HandleFunc("/login",LoginFunc(r,DHUDB,store))
     mux.HandleFunc("/home",HomeFunc(r,DHUDB,store))
     mux.HandleFunc("/home/select",HomeSelectFunc(r,DHUDB,store))
+    mux.HandleFunc("/home/delete",HomeDeleteFunc(DHUDB,store))
     mux.HandleFunc("/commonselect",CommonSelectFunc(r,DHUDB))
     mux.HandleFunc("/home/register",HomeRegisterFunc(DHUDB,store))
     mux.HandleFunc("/feedback",FeedBackFunc(DHUDB))
@@ -79,6 +81,21 @@ func RootFunc() ServePrimeFunc{
 func IndexFunc(r *render.Render) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         r.Text(w,http.StatusOK,"Hello World!This is the index of the website")
+    }
+}
+func HomeDeleteFunc(DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
+    return func (w http.ResponseWriter, req *http.Request){
+        courseNo := req.PostFormValue("courseNo")
+        stuid,ok := validateSession(req,store)
+        if ok{
+            cRigister := DBsession.C("RigisterInfo")
+            err := cRigister.Find(bson.M{"studentid":stuid}).Update(bson.M{"$set":bson.M{"courselist.$.coursestate":courseDelete}})
+            if err == nil{
+                http.Redirect(w,req,"/home",http.StatusMovedPermanently)
+                return
+            }
+        }
+            http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
     }
 }
 func LoginFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
@@ -105,7 +122,7 @@ func validateLogin(id,pw string,cLogin *mgo.Collection) (flag bool){
         if err != nil{
             return
         }
-        
+
     }else{
         flag = true
     }
@@ -167,6 +184,7 @@ func validateSession(req *http.Request,store *sessions.CookieStore) (sessionid s
 func getrigisteredFunc(stuid string,cRigister *mgo.Collection) ([]RigisteredCourse,error){
     //TODO The collection will be nil here,so we will finish the database collection
     //and take it to the function
+    //mgo.ErrNotFound
     return []RigisteredCourse{
                 RigisteredCourse{"131441","专业英语","李悦",0,1},
                 RigisteredCourse{"130153","计算机网络","朱明",0,1}},nil

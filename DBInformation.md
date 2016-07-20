@@ -39,6 +39,7 @@
     }
     - type RigisteredCourse struct{
         CourseID        string          `json:"courseID"`
+        CourseNo        string          `json:"courseNo"`
         CourseName      string          `json:"courseName"`
         TeacherName     string          `json:"teacherName"`
         CourseState     int          `json:"courseState"`
