@@ -53,9 +53,8 @@ var (
 var (
     NotifyCourseID chan string = make(chan string,100)
 )
-func InitServerMux(r *render.Render,mgoSession *mgo.Session) (*http.ServeMux,*sessions.CookieStore){
+func InitServerMux(r *render.Render) (*http.ServeMux,*sessions.CookieStore){
     mux := http.NewServeMux()
-    DHUDB := mgoSession.DB("DHU")
     // cTable := session.DB("DHU").C("CourseTable")
     // cIndex := session.DB("DHU").C("CourseIndex")
     // cLogin := session.DB("DHU").C("StudentInfo")
@@ -63,13 +62,13 @@ func InitServerMux(r *render.Render,mgoSession *mgo.Session) (*http.ServeMux,*se
     store := sessions.NewCookieStore([]byte(securecookie.GenerateRandomKey(32)))
     mux.HandleFunc("/",RootFunc())
     mux.HandleFunc("/index",IndexFunc(r))
-    mux.HandleFunc("/login",LoginFunc(r,DHUDB,store))
-    mux.HandleFunc("/home",HomeFunc(r,DHUDB,store))
-    mux.HandleFunc("/home/select",HomeSelectFunc(r,DHUDB,store))
-    mux.HandleFunc("/home/delete",HomeDeleteFunc(DHUDB,store))
-    mux.HandleFunc("/commonselect",CommonSelectFunc(r,DHUDB))
-    mux.HandleFunc("/home/register",HomeRegisterFunc(DHUDB,store))
-    mux.HandleFunc("/feedback",FeedBackFunc(DHUDB))
+    mux.HandleFunc("/login",LoginFunc(r,store))
+    mux.HandleFunc("/home",HomeFunc(r,store))
+    mux.HandleFunc("/home/select",HomeSelectFunc(r,store))
+    mux.HandleFunc("/home/delete",HomeDeleteFunc(store))
+    mux.HandleFunc("/commonselect",CommonSelectFunc(r))
+    mux.HandleFunc("/home/register",HomeRegisterFunc(store))
+    mux.HandleFunc("/feedback",FeedBackFunc(store))
     mux.HandleFunc("/errMessage",ErrorMessageFunc(r))
     return mux,store
 }
@@ -83,12 +82,13 @@ func IndexFunc(r *render.Render) ServePrimeFunc{
         r.Text(w,http.StatusOK,"Hello World!This is the index of the website")
     }
 }
-func HomeDeleteFunc(DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
+func HomeDeleteFunc(store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         courseNo := req.PostFormValue("courseNo")
-        stuid,ok := validateSession(req,store)
+        stuid,school,ok := validateSession(req,store)
         if ok{
-            cRigister := DBsession.C("RigisterInfo")
+            cRigister := SchoolDB[school].C("RigisterInfo")
+            //TODO test here
             err := cRigister.Find(bson.M{"studentid":stuid}).Update(bson.M{"$set":bson.M{"courselist.$.coursestate":courseDelete}})
             if err == nil{
                 http.Redirect(w,req,"/home",http.StatusMovedPermanently)
@@ -98,14 +98,17 @@ func HomeDeleteFunc(DBsession *mgo.Database,store *sessions.CookieStore) ServePr
             http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
     }
 }
-func LoginFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
+func LoginFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         id := req.PostFormValue("UserID")
         pw := req.PostFormValue("UserPassword")
-        // cLogin := DBsession.C("StudentInfo")
+        //TODO It should be a form value that come from the user request
+        school := "DHU"
+        // cLogin := SchoolDB[school].C("StudentInfo")
         if validateLogin(id,pw,nil){
             session,_ := store.Get(req,"sessionid")
             session.Values["stuid"] = id
+            session.Values["school"] = school
             session.Save(req, w)
             http.Redirect(w,req,"/home",http.StatusMovedPermanently)
         }else{
@@ -114,25 +117,26 @@ func LoginFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieSt
     }
 }
 func validateLogin(id,pw string,cLogin *mgo.Collection) (flag bool){
-    //TODO Test it from database or request to the school website
     var err error
     err = cLogin.Find(bson.M{"studentid":id,"studentpw":pw})
     if err != nil{
         _,err = strconv.Atoi(id)
         if err != nil{
             return
+        }else{
+            //TODO request to the school website
+            flag = true
         }
-
     }else{
         flag = true
     }
     return
 }
-func HomeFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
+func HomeFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         status := req.PostFormValue("userstatus")
         if validateHomeStatus(status){
-            stuid,ok := validateSession(req,store)
+            stuid,school,ok := validateSession(req,store)
             if ok{
                 if status == ""{
                     hello := "Hello " + stuid + "!This is the home page of the website"
@@ -141,8 +145,8 @@ func HomeFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieSto
                     var err error
                     var done bool
                     var courselist []RigisteredCourse
+                    cRigister := SchoolDB[school].C("RigisterInfo")
                     for i := 0; i < 3;i++ {
-                        cRigister := DBsession.C("RigisterInfo")
                         courselist,err = getrigisteredFunc(stuid,cRigister)
                         if err == nil{
                             done = true
@@ -171,12 +175,23 @@ func validateHomeStatus(status string) (flag bool){
     }
     return
 }
-func validateSession(req *http.Request,store *sessions.CookieStore) (sessionid string,flag bool){
+func validateSession(req *http.Request,store *sessions.CookieStore) (sessionid,schoolid string,flag bool){
     session,_ := store.Get(req,"sessionid")
     id := session.Values["stuid"]
+    school := session.Values["shool"]
+    schooln,ok := school.(string)
+    if ok{
+        _,ok := SchoolDB[schooln]
+        if !ok {
+            return
+        }
+    }else{
+        return
+    }
     stringid,ok := id.(string)
     if ok && stringid != ""{
         sessionid = stringid
+        schoolid = schooln
         flag = true
     }
     return
@@ -184,16 +199,22 @@ func validateSession(req *http.Request,store *sessions.CookieStore) (sessionid s
 func getrigisteredFunc(stuid string,cRigister *mgo.Collection) ([]RigisteredCourse,error){
     //TODO The collection will be nil here,so we will finish the database collection
     //and take it to the function
-    //mgo.ErrNotFound
+    // var stuRigister StudentRigisterCourse
+    // err := cRigister.Find(bson.M{"studentid":stuid}).One(&stuRigister)
+    // if err != nil && err != mgo.ErrNotFound{
+    //     return []RigisteredCourse{},err
+    // }else{
+    //     return stuRigister.CourseList,nil
+    // }
     return []RigisteredCourse{
                 RigisteredCourse{"131441","专业英语","李悦",0,1},
                 RigisteredCourse{"130153","计算机网络","朱明",0,1}},nil
 }
-func HomeSelectFunc(r *render.Render,DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
+func HomeSelectFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         coursetype := req.PostFormValue("coursetype")
         if validateCourseType(coursetype){
-            sessionid,ok := validateSession(req,store)
+            sessionid,school,ok := validateSession(req,store)
             if ok{
                 if coursetype == ""{
                     hello := "Hello " + sessionid + "!This is the home/select page of the website"
@@ -204,8 +225,8 @@ func HomeSelectFunc(r *render.Render,DBsession *mgo.Database,store *sessions.Coo
                     var err  error
                     var teachSchemas []TeachSchema
                     for i := 0; i < 3; i++ {
-                        cTable := DBsession.C("CourseTable")
-                        cIndex := DBsession.C("CourseIndex")
+                        cTable := SchoolDB[school].C("CourseTable")
+                        cIndex := SchoolDB[school].C("CourseIndex")
                         teachSchemas,err = APIHomeSelect(cTable,cIndex,sessionid[:6],coursetype)
                         if err == nil{
                             done = true
@@ -235,7 +256,7 @@ func validateCourseType(courseType string) (flag bool){
     }
     return
 }
-func CommonSelectFunc(r *render.Render,DBsession *mgo.Database) ServePrimeFunc{
+func CommonSelectFunc(r *render.Render) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         id := req.PostFormValue("courseID")
         if id == ""{
@@ -244,7 +265,7 @@ func CommonSelectFunc(r *render.Render,DBsession *mgo.Database) ServePrimeFunc{
             var done bool
             var err error
             var course CourseContent
-            cTable := DBsession.C("CourseTable")
+            cTable := SchoolDB[school].C("CourseTable")
             for i := 0; i < 3; i++ {
                 course,err = APICommonselect(cTable,id)
                 if err == nil{
@@ -260,19 +281,18 @@ func CommonSelectFunc(r *render.Render,DBsession *mgo.Database) ServePrimeFunc{
         }
     }
 }
-func HomeRegisterFunc(DBsession *mgo.Database,store *sessions.CookieStore) ServePrimeFunc{
+func HomeRegisterFunc(store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         var slist SelectLists
-        stuid,ok := validateSession(req,store)
+        stuid,school,ok := validateSession(req,store)
         if ok{
             result,err := ioutil.ReadAll(req.Body)
             if err == nil{
                  err = json.Unmarshal([]byte(result), &slist)
                  if err == nil{
-                     cTable := DBsession.C("CourseTable")
+                     cTable := SchoolDB[school].C("CourseTable")
                      if validateCourse(slist,cTable){
-                         //TODO saveAndRegister use the incorrect date struct
-                         saveAndRegister(stuid,slist,DBsession)
+                         saveAndRegister(stuid,slist,SchoolDB[school])
                          http.Redirect(w,req,"/home",http.StatusMovedPermanently)
                      }else{
                          http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
@@ -295,8 +315,8 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
     for _,coursevalue := range slist.SelectList{
         var teachername string
         var courseContent CourseContent
-        err = cTable.Find(bson.M{"courseid":coursevalue.CourseID,"courselist.courseno":coursevalue.CourseNo}).One(&courseContent)
-        //TODO roll back
+        //TODO find the duplicate RigisterInfo
+        err = cTable.Find(bson.M{"courseid":coursevalue.CourseID}).One(&courseContent)
         if err == nil{
             for _,courselist := range courseContent.CourseList{
                 if coursevalue.CourseNo == courselist.CourseNo{
@@ -304,8 +324,9 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
                     break
                 }
             }
+            //TODO mutex problem
             Squeuenum := getQueueNum(coursevalue.CourseID,coursevalue.CourseNo,cCourseSelector) + 1
-            rInfo.CourseList = append(rInfo.CourseList,RigisteredCourse{coursevalue.CourseID,courseContent.CourseName,teachername,courseInQueue,Squeuenum})
+            rInfo.CourseList = append(rInfo.CourseList,RigisteredCourse{coursevalue.CourseID,coursevalue.CourseNo,courseContent.CourseName,teachername,courseInQueue,Squeuenum})
             rigisterlist[coursevalue.CourseID] = RigisterCourseInfo{stuid,coursevalue.CourseNo,Squeuenum}
         }
     }
@@ -317,6 +338,7 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
         cRigister.Insert(rInfo)
     }
     // take a goroutine to avoid blocking
+    //TODO CourseMap here
     go func() {
         for key,value := range rigisterlist{
             CourseMap[key].mutex.Lock()
@@ -369,18 +391,19 @@ func ErrorMessageFunc(r *render.Render) ServePrimeFunc{
         r.Text(w,http.StatusOK,"Hello World!This is the error page of the website")
     }
 }
-func FeedBackFunc(DBsession *mgo.Database) ServePrimeFunc{
+func FeedBackFunc(store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
+        stuid,school,ok := validateSession(req,store)
         message := req.PostFormValue("Message")
         if message == ""{
             http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
         }else{
-            go storeFeedBackMessage(message,DBsession)
+            go storeFeedBackMessage(stuid,message,SchoolDB[school])
             http.Redirect(w,req,"/index",http.StatusMovedPermanently)
         }
     }
 }
-func storeFeedBackMessage(message string,DBsession *mgo.Database){
+func storeFeedBackMessage(stuid,message string,DBsession *mgo.Database){
     //TODO That we will take the message into the database and notify the developer
     return
 }

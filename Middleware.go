@@ -16,7 +16,7 @@ func RunFunc() {
         panic(err)
     }
     defer mgoSession.Close()
-    mux,store := InitServerMux(r,mgoSession)
+    mux,store := InitServerMux(r)
     n   := negroni.Classic()
     n.Use(negroni.HandlerFunc(CookieMiddleware(store)))
     n.Use(negroni.HandlerFunc(SetAllowOrigin()))
