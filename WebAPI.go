@@ -21,7 +21,8 @@ type RigisteredCourse struct{
     TeacherName     string          `json:"teacherName"`
     CourseState     int             `json:"courseState"`
     // 0 means the Course in the queue
-    //1 means the Course finished
+    // 1 means the Course finished
+    // -1 means the Course deleted
     QueueNumber     int             `json:"queueNumber"`
 }
 type SelectLists struct{
@@ -55,10 +56,6 @@ var (
 )
 func InitServerMux(r *render.Render) (*http.ServeMux,*sessions.CookieStore){
     mux := http.NewServeMux()
-    // cTable := session.DB("DHU").C("CourseTable")
-    // cIndex := session.DB("DHU").C("CourseIndex")
-    // cLogin := session.DB("DHU").C("StudentInfo")
-    // cRigister := session.DB("DHU").C("RigisterInfo")
     store := sessions.NewCookieStore([]byte(securecookie.GenerateRandomKey(32)))
     mux.HandleFunc("/",RootFunc())
     mux.HandleFunc("/index",IndexFunc(r))
@@ -89,7 +86,7 @@ func HomeDeleteFunc(store *sessions.CookieStore) ServePrimeFunc{
         if ok{
             cRigister := SchoolDB[school].C("RigisterInfo")
             //TODO test here
-            err := cRigister.Find(bson.M{"studentid":stuid}).Update(bson.M{"$set":bson.M{"courselist.$.coursestate":courseDelete}})
+            err := cRigister.Update(bson.M{"studentid":stuid,"courselist.courseno":courseNo,"courselist.coursestate":courseInQueue},bson.M{"$set":bson.M{"courselist.$.coursestate":courseDelete}})
             if err == nil{
                 http.Redirect(w,req,"/home",http.StatusMovedPermanently)
                 return
@@ -292,7 +289,7 @@ func HomeRegisterFunc(store *sessions.CookieStore) ServePrimeFunc{
                  if err == nil{
                      cTable := SchoolDB[school].C("CourseTable")
                      if validateCourse(slist,cTable){
-                         saveAndRegister(stuid,slist,SchoolDB[school])
+                         saveAndRegister(stuid,school,slist,SchoolDB[school])
                          http.Redirect(w,req,"/home",http.StatusMovedPermanently)
                      }else{
                          http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
@@ -306,16 +303,13 @@ func HomeRegisterFunc(store *sessions.CookieStore) ServePrimeFunc{
 }
 func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
     var err error
-    var oldInfo StudentRigisterCourse
-    var rigisterlist map[string]RigisterCourseInfo
-    rInfo := StudentRigisterCourse{StudentID:stuid}
     cTable := DBsession.C("CourseTable")
     cRigister := DBsession.C("RigisterInfo")
     cCourseSelector := DBsession.C("CourseSelector")
+    rigisterlist := map[string]RigisterCourseInfo{}
     for _,coursevalue := range slist.SelectList{
         var teachername string
         var courseContent CourseContent
-        //TODO find the duplicate RigisterInfo
         err = cTable.Find(bson.M{"courseid":coursevalue.CourseID}).One(&courseContent)
         if err == nil{
             for _,courselist := range courseContent.CourseList{
@@ -324,18 +318,23 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
                     break
                 }
             }
-            //TODO mutex problem
-            Squeuenum := getQueueNum(coursevalue.CourseID,coursevalue.CourseNo,cCourseSelector) + 1
-            rInfo.CourseList = append(rInfo.CourseList,RigisteredCourse{coursevalue.CourseID,coursevalue.CourseNo,courseContent.CourseName,teachername,courseInQueue,Squeuenum})
+            err = cRigister.Find(bson.M{"studentid":stuid,"courselist.courseno":coursevalue.CourseNo}).One(nil)
+            if err == nil{
+                err = cRigister.Find(bson.M{"studentid":stuid,"courselist.courseno":coursevalue.CourseNo,"courselist.coursestate":courseInQueue}).One(nil)
+                if err == nil{
+                    continue
+                }else{
+                    cRigister.Update(bson.M{"studentid":stuid,"courselist.courseno":coursevalue.CourseNo},bson.M{"$set":bson.M{"courselist.$.coursestate":courseInQueue}})
+                }
+            }else{
+                CourseMap[coursevalue.CourseID].mutex.RLock()
+                Squeuenum := getQueueNum(coursevalue.CourseNo,cCourseSelector) + 1
+                rInfo ：= RigisteredCourse{coursevalue.CourseID,coursevalue.CourseNo,courseContent.CourseName,teachername,courseInQueue,Squeuenum}
+                cRigister.Insert(bson.M{"studentid":stuid},bson.M{"$push":bson.M{"courselist":rInfo}})
+                CourseMap[coursevalue.CourseID].mutex.RUnlock()
+            }
             rigisterlist[coursevalue.CourseID] = RigisterCourseInfo{stuid,coursevalue.CourseNo,Squeuenum}
         }
-    }
-    err = cRigister.Find(bson.M{"studentid":stuid}).One(&oldInfo)
-    if err == nil{
-        rInfo.CourseList = append(rInfo.CourseList,oldInfo.CourseList...)
-        cRigister.Update(bson.M{"studentid":stuid},rInfo)
-    }else{
-        cRigister.Insert(rInfo)
     }
     // take a goroutine to avoid blocking
     //TODO CourseMap here
@@ -351,10 +350,8 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
     }()
     return
 }
-func getQueueNum(courseID,courseNo string,cCourseSelector *mgo.Collection) (num int){
+func getQueueNum(courseNo string,cCourseSelector *mgo.Collection) (num int){
     var err error
-    CourseMap[courseID].mutex.RLock()
-    defer CourseMap[courseID].mutex.RUnlock()
     for{
         num,err = cCourseSelector.Find(bson.M{"CourseNo":courseNo}).Count()
         if err == nil{
