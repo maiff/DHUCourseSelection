@@ -4,34 +4,43 @@ import (
     "gopkg.in/mgo.v2"
 )
 type mCourseInfo struct{
-    running     bool
-    mutex       *sync.RWMutex
+    running       bool
+    mutexDB       *sync.RWMutex
+    mutexBool     *sync.RWMutex
 }
 var (
     SchoolList []string = []string{"DHU"}
-    CourseMap  map[string]mCourseInfo = map[mCourseID]mCourseInfo{}
-    SchoolDB   map[string](*mgo.Database) = map[string](*mgo.Database){}
+    CourseMap  map[string](map[string]mCourseInfo) = map[string](map[string]mCourseInfo){}
+    SchoolSession *mgo.Session
+    // SchoolDB   map[string](*mgo.Database) = map[string](*mgo.Database){}
 )
-func InitSchoolDB(mgoSession *mgo.Session) {
-    var err error
-    for _,school := range SchoolList{
-        SchoolDB[school] = mgoSession.DB(school)
+func GetSession() *mgo.Session{
+    return SchoolSession.Clone()
+}
+func InitSchoolDB() {
+    mgoSession,err := mgo.Dial("localhost:27017")
+    if err != nil {
+        panic(err)
     }
+    mgoSession.SetMode(mgo.Strong,true)
+    SchoolSession = mgoSession
 }
 //TODO Rebuild here
 func InitCourseMap() {
-    var err error
-    var allCourse []CourseContent
-    cTable := DBsession.C("CourseTable")
-    err = cTable.Find(nil).All(&allCourse)
-    if err != nil{
-        panic(err)
-    }
-    for _,course := range allCourse{
-        CourseMap[course.CourseID] = mCourseInfo{}
-    }
-    for key,value := range CourseMap{
-        fmt.Println(key)
-        fmt.Println(value)
+    for school,DB := range SchoolDB{
+        var err error
+        var allCourse []CourseContent
+        cTable := DB.C("CourseTable")
+        err = cTable.Find(nil).All(&allCourse)
+        if err != nil{
+            panic(err)
+        }
+        for _,course := range allCourse{
+            CourseMap[school][course.CourseID] = mCourseInfo{}
+        }
+        // for key,value := range CourseMap{
+        //     fmt.Println(key)
+        //     fmt.Println(value)
+        // }
     }
 }

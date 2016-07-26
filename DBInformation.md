@@ -30,6 +30,7 @@
     - type StudentInfo struct{
         StudentID       string
         StudentPW       string
+        PWNotEffective  bool
     }
 - RigisterInfo  
     数据表中存储了学生注册的所有课程  

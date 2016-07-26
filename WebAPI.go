@@ -40,6 +40,7 @@ type RigisterCourseInfo struct{
 type StudentInfo struct{
     StudentID       string
     StudentPW       string
+    PWNotEffective  bool
 }
 type ServePrimeFunc func (w http.ResponseWriter, req *http.Request)
 var (
@@ -52,7 +53,7 @@ var (
 //If you want to know what's the global variables meaning,you should read the README.md
 //in the github
 var (
-    NotifyCourseID chan string = make(chan string,100)
+    NotifyCourse chan [2]string = make(chan [2]string,100)
 )
 func InitServerMux(r *render.Render) (*http.ServeMux,*sessions.CookieStore){
     mux := http.NewServeMux()
@@ -84,7 +85,10 @@ func HomeDeleteFunc(store *sessions.CookieStore) ServePrimeFunc{
         courseNo := req.PostFormValue("courseNo")
         stuid,school,ok := validateSession(req,store)
         if ok{
-            cRigister := SchoolDB[school].C("RigisterInfo")
+            DBsession := GetSession()
+            defer DBsession.Close()
+            cRigister := DBsession.DB(school).C("RigisterInfo")
+
             //TODO test here
             err := cRigister.Update(bson.M{"studentid":stuid,"courselist.courseno":courseNo,"courselist.coursestate":courseInQueue},bson.M{"$set":bson.M{"courselist.$.coursestate":courseDelete}})
             if err == nil{
@@ -101,7 +105,9 @@ func LoginFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
         pw := req.PostFormValue("UserPassword")
         //TODO It should be a form value that come from the user request
         school := "DHU"
-        // cLogin := SchoolDB[school].C("StudentInfo")
+        // DBsession := GetSession()
+        // defer DBsession.Close()
+        // cLogin := DBsession.DB(school).C("StudentInfo")
         if validateLogin(id,pw,nil){
             session,_ := store.Get(req,"sessionid")
             session.Values["stuid"] = id
@@ -142,7 +148,9 @@ func HomeFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
                     var err error
                     var done bool
                     var courselist []RigisteredCourse
-                    cRigister := SchoolDB[school].C("RigisterInfo")
+                    DBsession := GetSession()
+                    defer DBsession.Close()
+                    cRigister := DBsession.DB(school).C("RigisterInfo")
                     for i := 0; i < 3;i++ {
                         courselist,err = getrigisteredFunc(stuid,cRigister)
                         if err == nil{
@@ -221,9 +229,11 @@ func HomeSelectFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc
                     var done bool
                     var err  error
                     var teachSchemas []TeachSchema
+                    DBsession := GetSession()
+                    defer DBsession.Close()
                     for i := 0; i < 3; i++ {
-                        cTable := SchoolDB[school].C("CourseTable")
-                        cIndex := SchoolDB[school].C("CourseIndex")
+                        cTable := DBsession.DB(school).C("CourseTable")
+                        cIndex := DBsession.DB(school).C("CourseIndex")
                         teachSchemas,err = APIHomeSelect(cTable,cIndex,sessionid[:6],coursetype)
                         if err == nil{
                             done = true
@@ -262,7 +272,9 @@ func CommonSelectFunc(r *render.Render) ServePrimeFunc{
             var done bool
             var err error
             var course CourseContent
-            cTable := SchoolDB[school].C("CourseTable")
+            DBsession := GetSession()
+            defer DBsession.Close()
+            cTable := DBsession.DB(school).C("CourseTable")
             for i := 0; i < 3; i++ {
                 course,err = APICommonselect(cTable,id)
                 if err == nil{
@@ -287,9 +299,11 @@ func HomeRegisterFunc(store *sessions.CookieStore) ServePrimeFunc{
             if err == nil{
                  err = json.Unmarshal([]byte(result), &slist)
                  if err == nil{
-                     cTable := SchoolDB[school].C("CourseTable")
+                     DBsession := GetSession()
+                     defer DBsession.Close()
+                     cTable := DBsession.DB(school).C("CourseTable")
                      if validateCourse(slist,cTable){
-                         saveAndRegister(stuid,school,slist,SchoolDB[school])
+                         saveAndRegister(stuid,school,slist,DBsession.DB(school))
                          http.Redirect(w,req,"/home",http.StatusMovedPermanently)
                      }else{
                          http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
@@ -301,7 +315,7 @@ func HomeRegisterFunc(store *sessions.CookieStore) ServePrimeFunc{
         http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
     }
 }
-func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
+func saveAndRegister(stuid,school string,slist SelectLists,DBsession *mgo.Database) {
     var err error
     cTable := DBsession.C("CourseTable")
     cRigister := DBsession.C("RigisterInfo")
@@ -327,11 +341,16 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
                     cRigister.Update(bson.M{"studentid":stuid,"courselist.courseno":coursevalue.CourseNo},bson.M{"$set":bson.M{"courselist.$.coursestate":courseInQueue}})
                 }
             }else{
-                CourseMap[coursevalue.CourseID].mutex.RLock()
+                CourseMap[school][coursevalue.CourseID].mutexDB.RLock()
                 Squeuenum := getQueueNum(coursevalue.CourseNo,cCourseSelector) + 1
                 rInfo ：= RigisteredCourse{coursevalue.CourseID,coursevalue.CourseNo,courseContent.CourseName,teachername,courseInQueue,Squeuenum}
-                cRigister.Insert(bson.M{"studentid":stuid},bson.M{"$push":bson.M{"courselist":rInfo}})
-                CourseMap[coursevalue.CourseID].mutex.RUnlock()
+                for{
+                    err := cRigister.Insert(bson.M{"studentid":stuid},bson.M{"$push":bson.M{"courselist":rInfo}})
+                    if err != nil{
+                        break
+                    }
+                }
+                CourseMap[school][coursevalue.CourseID].mutexDB.RUnlock()
             }
             rigisterlist[coursevalue.CourseID] = RigisterCourseInfo{stuid,coursevalue.CourseNo,Squeuenum}
         }
@@ -340,12 +359,17 @@ func saveAndRegister(stuid string,slist SelectLists,DBsession *mgo.Database) {
     //TODO CourseMap here
     go func() {
         for key,value := range rigisterlist{
-            CourseMap[key].mutex.Lock()
-            cCourseSelector.Insert(value)
-            CourseMap[key].mutex.Unlock()
+            CourseMap[school][key].mutexDB.Lock()
+            for{
+                err := cCourseSelector.Insert(value)
+                if err != nil{
+                    break
+                }
+            }
+            CourseMap[school][key].mutexDB.Unlock()
         }
         for _,value := range slist.SelectList{
-            NotifyCourseID <- value.CourseID
+            NotifyCourse <- [2]string{school,value.CourseID}
         }
     }()
     return
@@ -395,12 +419,14 @@ func FeedBackFunc(store *sessions.CookieStore) ServePrimeFunc{
         if message == ""{
             http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
         }else{
-            go storeFeedBackMessage(stuid,message,SchoolDB[school])
+            go storeFeedBackMessage(stuid,school,message)
             http.Redirect(w,req,"/index",http.StatusMovedPermanently)
         }
     }
 }
-func storeFeedBackMessage(stuid,message string,DBsession *mgo.Database){
+func storeFeedBackMessage(stuid,school,message string){
+    // DBsession := GetSession()
+    // defer DBsession.Close()
     //TODO That we will take the message into the database and notify the developer
     return
 }

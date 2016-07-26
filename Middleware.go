@@ -11,11 +11,6 @@ import (
 )
 func RunFunc() {
     r := render.New()
-    mgoSession,err := mgo.Dial("localhost:27017")
-    if err != nil {
-        panic(err)
-    }
-    defer mgoSession.Close()
     mux,store := InitServerMux(r)
     n   := negroni.Classic()
     n.Use(negroni.HandlerFunc(CookieMiddleware(store)))
