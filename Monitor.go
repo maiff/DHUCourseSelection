@@ -58,30 +58,32 @@ func MonitorFunc(m Monitor,school,courseid string) {
     var err error
     var courselist []string
     var wg sync.WaitGroup
-    DBsession := GetSession()
-    defer DBsession.Close()
-    cCourseSelector := DBsession.DB(school).C("CourseSelector")
-    cLogin := DBsession.DB(school).C("StudentInfo")
+    detectDatabase := DetectDatabase(school,courseid)
     for{
         courselist,err = m.Monitor(courseid)
         if err == nil{
             for _,courseno := range courselist{
                 wg.Add(1)
-                go monitorFunc(m,school,courseno,&wg)
+                go registerFunc(m,school,courseno,&wg)
             }
             wg.Wait()
         }
-        if detectDatabase(school,courseid){
+        if detectDatabase(){
+            setcourseMap(school,courseid,false)
             return
         }
         time.Sleep(SleepTime * time.Second)
     }
 }
-func monitorFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
+func registerFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
+    defer wg.Done()
     var err error
     var stuInfo    StudentInfo
     var courseInfo RigisterCourseInfo
-    defer wg.Done()
+    DBsession := GetSession()
+    defer DBsession.Close()
+    cCourseSelector := DBsession.DB(school).C("CourseSelector")
+    cLogin := DBsession.DB(school).C("StudentInfo")
     err = cCourseSelector.Find(bson.M{"courseno":courseNo,"queuenum":1}).One(&courseInfo)
     if err == nil{
         err = cLogin.Find(bson.M{"studentid":courseInfo.StudentID}).One(&stuInfo)
@@ -90,7 +92,7 @@ func monitorFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
                 return
             }
             client,err := m.Login(m.LoginPara(stuInfo.StudentID,stuInfo.StudentPW))
-            if checkLoginErr(err){
+            if checkLoginErr(err,cLogin){
                 return
             }
             err = m.Register(m.RigisterPara(courseNo),client)
@@ -99,34 +101,80 @@ func monitorFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
                 return
             }
             if !done{
-                conflictCourse,isConflict := ValidateStuCourseConflict(courseid,client)
-                if isConflict{
-                    err = m.Delete(m.DeletePara(conflictCourse),client)
-                    errflag,done = checkDeleteErr(err)
-                    if errflag || !done{
-                        return
-                    }
-                }
-                err = m.Register(m.RigisterPara(courseNo),client)
-                errflag,done = checkRegisterErr(err)
-                if errflag || !done {
-                    m.SetErrorMessage(err.String())
-                    m.RollBack(courseno,conflictCourse)
-                }
+                return
             }
+            //I think we should not delete course automatically
+            //So we should notify the course is conflicted and let users delete by the themselves
+            // if !done{
+            //     conflictCourse,isConflict := ValidateStuCourseConflict(courseid,client)
+            //     if isConflict{
+            //         err = m.Delete(m.DeletePara(conflictCourse),client)
+            //         errflag,done = checkDeleteErr(err)
+            //         if errflag || !done{
+            //             return
+            //         }
+            //     }
+            //     err = m.Register(m.RigisterPara(courseNo),client)
+            //     errflag,done = checkRegisterErr(err)
+            //     if errflag || !done {
+            //         m.SetErrorMessage(err.String())
+            //         m.RollBack(courseno,conflictCourse)
+            //     }
+            // }
             if m.ValidateStuCourseSelected(courseid,courseNo,client){
-                alterDatabase(courseid,courseNo,school)
+                alterDatabase(school,courseNo,courseInfo.StudentID,cCourseSelector)
             }else{
                 m.SetErrorMessage(selectErrStr + courseno)
             }
         }
     }
 }
-func alterDatabase(courseid,courseno,school string) {
-
+func DetectDatabase(school,courseid string) func () bool{
+    DBsession := GetSession()
+    courselist,notFound := getCourselist(school,courseid,DBsession)
+    cSelector := DBsession.DB(school).C("CourseSelector")
+    if notFound{
+        return func() bool{
+            return true
+        }
+    }else{
+        return func() bool{
+            var err error
+            for _,value := range courselist{
+                err = cSelector.Find(bson.M{"courseno":value}).One(nil)
+                if err == nil{
+                    return false
+                }
+            }
+            DBsession.Close()
+            return true
+        }
+    }
 }
-func synchronizeDatabase() {
-    
+func getCourselist(school,courseid string,s *mgo.Session) (courselist []string,notFound bool){
+    cTable := s.DB(school).C("CourseTable")
+    err := cTable.Find(bson.M{"courseid":courseid}).One(&course)
+    if err != nil{
+        notFound = true
+    }else{
+        for _,value := range course.CourseList{
+            courselist.append(courselist,value.CourseNo)
+        }
+    }
+    return
+}
+func alterDatabase(school,courseno,stuid string,cCourseSelector *mgo.Collection) {
+    err := cCourseSelector.Remove(bson.M{"courseno":courseNo,"queuenum":1})
+    if err == nil{
+        cCourseSelector.UpdateAll(bson.M{"courseno":courseNo},bson.M{"$inc":bson.M{"queuenum":-1}})
+        synchronizeDatabase(school,courseno,stuid)
+    }
+}
+func synchronizeDatabase(school,courseno,stuid string) {
+    DBsession := GetSession()
+    defer DBsession.Close()
+    cRigister := DBsession.DB(school).C("RigisterInfo")
+    cRigister.UpdateAll(bson.M{"courselist.courseno":courseNo},bson.M{"$inc":bson.M{"courselist.queuenumber":-1}})
 }
 func checkDeleteErr(err error) (flag,done bool) {
     //The same as checkRegisterErr
@@ -143,7 +191,7 @@ func checkRegisterErr(err error) (flag,done bool){
     }
     return
 }
-func checkLoginErr(err error) (flag bool){
+func checkLoginErr(err error,cLogin *mgo.Collection) (flag bool){
     switch err {
     case networkErr:
         flag = true
@@ -157,9 +205,6 @@ func checkLoginErr(err error) (flag bool){
         }
     }
     return
-}
-func detectDatabase(school,courseid string) (Empty bool){
-
 }
 func setcourseMap(school,courseid string,flag bool) {
     CourseMap[school][courseid].mutexBool.Lock()
