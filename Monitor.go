@@ -3,9 +3,7 @@ import (
     "fmt"
     "time"
     "errors"
-    "net/url"
     "net/http"
-    "net/http/cookiejar"
 )
 type Monitor interface{
     MonitorParameter
@@ -13,21 +11,21 @@ type Monitor interface{
 }
 type MonitorParameter interface{
     LoginPara(para ...string)     map[string]string
-    DeletePara(para ...string)    map[string]string
-    monitorPara(para ...string)   map[string]string
+    // DeletePara(para ...string)    map[string]string
+    MonitorPara(para ...string)   map[string]string
     RigisterPara(para ...string)  map[string]string
 }
 type MonitorAction interface{
-    Login(map[string]string) *http.Client
+    Login(map[string]string) (*http.Client,error)
     // DefaultLogin() *http.Client
-    UpdateClient() *http.Client
-    Delete(map[string]string,*http.Client) error
+    UpdateClient() func () *http.Client
+    // Delete(map[string]string,*http.Client) error
     Register(map[string]string,*http.Client) error
-    Monitor(map[string]string,string) ([]string,error)
-    RollBack(string,string)
+    Monitor(map[string]string) ([]string,error)
+    // RollBack(string,string)
     SetErrorMessage(string)
     // GetSchoolName() string
-    ValidateStuCourseConflict(string,*http.Client) (string,bool)
+    // ValidateStuCourseConflict(string,*http.Client) (string,bool)
     ValidateStuCourseSelected(string,string,*http.Client) bool
 }
 var (
@@ -60,7 +58,7 @@ func MonitorFunc(m Monitor,school,courseid string) {
     var wg sync.WaitGroup
     detectDatabase := DetectDatabase(school,courseid)
     for{
-        courselist,err = m.Monitor(courseid)
+        courselist,err = m.Monitor(m.MonitorPara(courseid))
         if err == nil{
             for _,courseno := range courselist{
                 wg.Add(1)
@@ -210,17 +208,4 @@ func setcourseMap(school,courseid string,flag bool) {
     CourseMap[school][courseid].mutexBool.Lock()
     defer CourseMap[school][courseid].mutexBool.Unlock()
     CourseMap[school][courseid].running = flag
-}
-func NewClient() *http.Client{
-    jar,_ := cookiejar.New(nil)
-    return &http.Client{
-        Jar:jar,
-    }
-}
-func MakeParameters(para map[string]string) url.Values{
-    data := make(url.Values)
-    for key,value := range para{
-        data.Set(key,value)
-    }
-    return data
 }
