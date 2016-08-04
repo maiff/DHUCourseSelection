@@ -1,6 +1,8 @@
 package CourseSelection
 import (
+    "sync"
     "errors"
+    "strconv"
     "net/http"
     "github.com/PuerkitoBio/goquery"
 )
@@ -23,8 +25,10 @@ type DHUStruct() {
     SchoolStruct
     SchoolName string
 }
-func NewDHUStruct() {
-
+func NewDHUStruct() *DHUStruct{
+    dhuStruct := &DHUStruct{SchoolName:"DHU",}
+    dhuStruct.SchoolStruct = {ErrChan : getErrChan(),Client : dhuStruct.defaultLogin()}
+    return dhuStruct
 }
 func (d *DHUStruct) LoginPara(para ...string) map[string]string{
     loginPara := make(map[string]string)
@@ -130,6 +134,7 @@ func sendRequest(url string,m map[string]string,client *http.Client) (*http.Resp
 func (d *DHUStruct) ValidateStuCourseSelected(courseid,courseNo string,client *http.Client) bool{
     var err error
     var res *http.Response
+    var Done bool
     for i := 0; i < 3; i++ {
         res,err := client.Get(DHUHostUrl + DHUSelectedUrl)
         if err == nil{
@@ -142,6 +147,16 @@ func (d *DHUStruct) ValidateStuCourseSelected(courseid,courseNo string,client *h
         return false
     }
     doc,_ := goquery.NewDocumentFromResponse(res)
+    doc.Find("tr").Each(func (i int,s *goquery.Selection){
+        lessonid := s.Find("td").Eq(0).Text()
+        _,err := strconv.Atoi(lessonid)
+        if err == nil {
+            if lessonid == courseid{
+                Done = true
+            }
+        }
+    }
+    return Done
 }
 func (d *DHUStruct) UpdateClient() func() *http.Client{
     var timeFroClient time.Time

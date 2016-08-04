@@ -1,14 +1,24 @@
 package CourseSelection
 import (
+    "sync"
     "time"
     "net/url"
     "net/http"
     "net/http/cookiejar"
 )
 const (
-    updateTime =
+    updateTime = 
     //
 )
+var (
+    errChan chan string
+)
+func getErrChan() chan string{
+    if errChan == nil{
+        errChan = make(chan string,50)
+    }
+    return errChan
+}
 type SchoolStruct struct{
     //    SchoolName string
     ErrChan     chan string
