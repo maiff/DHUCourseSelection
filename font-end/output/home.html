@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>个人中心</title>
+	<link rel="stylesheet" type="text/css" href="css/bootstrap-table.min.css"> 
+	<link rel="stylesheet" type="text/css" href="css/main.css">
+
+</head> 
+<body>
+<nav>
+<div id="logo">
+	<a href="#" class="dhu-jw">logo</a>
+</div>
+<ul id="navmenu">
+	<li><a href="index.html">首页
+		<em class="wi0"></em>
+	</a></li>
+	<li><a href="feedback.html">联系我们
+		<em class="wi0"></em>
+	</a></li>
+	<li><a href="login.html">向王涛
+		<em id="wi1"></em>
+	</a></li>
+</ul>
+</nav>
+
+<h2>已申请排队选取课程<span><a href="#" class=>按选课序号选课</a><a href="#" class=>选课→</a></span></h2> 	 
+<div class="table-container">
+	<table class="table table-striped">
+      <thead>
+        <tr>
+          <th>课程序号</th>
+          <th>选课序号</th>
+          <th>课程名称</th>
+          <th>教师姓名</th>
+          <th>课程状态</th>
+          <th>排队序号</th>
+          <th>选项</th>
+        </tr>
+      </thead>
+      <tbody>
+ 	  </tbody>
+    </table>
+
+</div>
+<div id="table-container">
+	<table class="table table-striped">
+      <thead>
+        <tr>
+          <th>课程序号</th>
+          <th>选课序号</th>
+          <th>课程名称</th>
+          <th>教师姓名</th>
+          <th>课程状态</th>
+          <th>排队序号</th>
+          <th>选项</th>
+        </tr>
+      </thead>
+    </table>
+</div>
+
+<footer>
+	copyrigh© xxxx2016
+</footer>
+</body>
+<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="js/animation.js">
+</script>
+
+<script type="text/javascript">
+	(function(){
+		
+		var recevie_data='{"RigisterCourse":[{"courseID":"131441","courseNo":"207911","courseName":"专业英语","teacherName":"李悦","courseState":0,"queueNumber":1},{"courseID":"130153","courseNo":"207933","courseName":"计算机网络","teacherName":"朱明","courseState":0,"queueNumber":1}]}';
+		var recevie_data_to_deal=JSON.parse(recevie_data).RigisterCourse;
+		console.log(recevie_data_to_deal);
+
+		function deal_data_obj(obj){
+			var statusColor={0:'',1:'green','-1':'red'};
+			var options={0:'删除','-1':'重选',1:''};
+			var state={0:'排队中',1:'已成功','-1':'被取消'};
+			return `<tr>
+			          <th scope="row">${obj.courseID}</th>
+			          <td>${obj.courseNo}</td>
+			          <td>${obj.courseName}</td>
+			          <td>${obj.teacherName}</td>
+			          <td class=${statusColor[obj.courseState]}>${state[obj.courseState]}</td>
+			          <td>${obj.queueNumber}</td>
+			          <td><a href="#">${options[obj.courseState]}</a></td>
+					</tr>`
+		};
+		function deal_data(arr){
+			var str='';
+			for(var i in arr){
+				str+=deal_data_obj(arr[i]);
+			}
+			return str;
+		}
+
+		$('.table-container table tbody').html(deal_data(recevie_data_to_deal));
+
+
+		// $.ajax({
+  //               type: "post",
+  //               url: "home",
+  //               data: { "userstatus":0},
+  //               success: function (recevie_data) {
+  //               	recevie_data_to_deal=recevie_data;
+  //               }
+  //           });
+  		function deleteCourse(courseNo){
+  			$.ajax({
+                type: "post",
+                url: "/home/delete",
+                data: { "courseNo":courseNo},
+                success: function (msg) {
+                   console.log(msg)
+
+                }
+            })
+  		}
+		$('.table-container').on('click','a:contains("删除")',function(){
+			$(this).parent().parent().hide("slow");
+			var courseNo=$(this).parent().parent().find('td').eq(0).text();
+			deleteCourse(courseNo);
+		});
+	})();
+	
+</script>
+</html>
