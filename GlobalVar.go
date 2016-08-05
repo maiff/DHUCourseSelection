@@ -31,7 +31,12 @@ func InitSchoolStructs() {
     SchoolStructs["DHU"] = NewDHUStruct()
 }
 func getSchoolStruct(school string) Monitor{
-    return SchoolStructs[school]
+    s,ok := SchoolStructs[school]
+    if ok{
+        return s
+    }else{
+        return nil
+    }
 }
 
 func InitCourseMap() {

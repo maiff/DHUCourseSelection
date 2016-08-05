@@ -12,6 +12,9 @@ import (
 const (
     timeoutErrMessage   =   ""
 )
+var (
+    UrlNotDetectSessionList map[string]string = map[string]string{"/":"","/index":"","/login":"","/errMessage":"","/feedback":""}
+)
 func RunFunc() {
     r := render.New()
     mux,store := InitServerMux(r)
@@ -25,15 +28,16 @@ func RunFunc() {
     l.Printf("listening on :8080")
     server := http.Server{Addr:":8080",Handler:n}
     server.SetKeepAlivesEnabled(true)
-    MainMonitor()
+    go MainMonitor()
+    InitSchoolDB()
     InitCourseMap()
+    InitSchoolStructs()
     l.Fatal(server.ListenAndServe())
 }
 
 type MiddlewareFunc func(rw http.ResponseWriter,r *http.Request,next http.HandlerFunc)
 func CookieMiddleware(c *sessions.CookieStore) MiddlewareFunc{
     //That Middleware is used to detect the session
-    UrlNotDetectSessionList := map[string]string{"/":"","/index":"","/login":"","/errMessage":"","/feedback":""}
     return func(rw http.ResponseWriter,r *http.Request,next http.HandlerFunc){
         urlpath := r.URL.Path
         if _,ok := UrlNotDetectSessionList[urlpath];!ok{
@@ -41,6 +45,7 @@ func CookieMiddleware(c *sessions.CookieStore) MiddlewareFunc{
             if session.IsNew || session.Values["stuid"] == ""{
                 next(rw,r)
                 http.Redirect(rw,r,"/index",http.StatusMovedPermanently)
+                return
             }
         }
         next(rw,r)

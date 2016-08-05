@@ -105,10 +105,10 @@ func LoginFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
         pw := req.PostFormValue("UserPassword")
         //TODO It should be a form value that come from the user request
         school := "DHU"
-        // DBsession := GetSession()
-        // defer DBsession.Close()
-        // cLogin := DBsession.DB(school).C("StudentInfo")
-        if validateLogin(id,pw,nil){
+        DBsession := GetSession()
+        defer DBsession.Close()
+        cLogin := DBsession.DB(school).C("StudentInfo")
+        if validateLogin(id,pw,school,cLogin){
             session,_ := store.Get(req,"sessionid")
             session.Values["stuid"] = id
             session.Values["school"] = school
@@ -119,16 +119,25 @@ func LoginFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
         }
     }
 }
-func validateLogin(id,pw string,cLogin *mgo.Collection) (flag bool){
+func validateLogin(id,pw,school string,cLogin *mgo.Collection) (flag bool){
     var err error
-    err = cLogin.Find(bson.M{"studentid":id,"studentpw":pw}).One(nil)
-    if err != nil{
+    var stuInfo StudentInfo
+    findErr := cLogin.Find(bson.M{"studentid":id,"studentpw":pw}).One(&stuInfo)
+    if findErr != nil || stuInfo.PWNotEffective{
         _,err = strconv.Atoi(id)
         if err != nil{
             return
         }else{
-            //TODO request to the school website
-            flag = true
+            s := getSchoolStruct(school)
+            _,err := s.Login(s.LoginPara(id,pw))
+            if err == nil{
+                flag = true
+            }
+            if findErr != nil{
+                cLogin.Insert(StudentInfo{id,pw,false})
+            }else{
+                cLogin.Update(bson.M{"studentid":id},bson.M{"$set":bson.M{"studentpw":pw,"pwnoteffective":false}})
+            }
         }
     }else{
         flag = true
@@ -185,7 +194,7 @@ func validateHomeStatus(status string) (flag bool){
 func validateSession(req *http.Request,store *sessions.CookieStore) (sessionid,schoolid string,flag bool){
     session,_ := store.Get(req,"sessionid")
     id := session.Values["stuid"]
-    school := session.Values["shool"]
+    school := session.Values["school"]
     schooln,ok := school.(string)
     if ok{
         _,ok := SchoolStructs[schooln]
@@ -426,10 +435,11 @@ func FeedBackFunc(store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         stuid,school,ok := validateSession(req,store)
         message := req.PostFormValue("Message")
-        if message == "" || !ok{
-            http.Redirect(w,req,"/errMessage",http.StatusMovedPermanently)
-        }else{
+        if len(message) < 300 && len(message) > 0 && ok{
             go storeFeedBackMessage(stuid,school,message)
+            http.Redirect(w,req,"/home",http.StatusMovedPermanently)
+        }
+        if !ok{
             http.Redirect(w,req,"/index",http.StatusMovedPermanently)
         }
     }
