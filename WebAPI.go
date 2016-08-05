@@ -1,5 +1,6 @@
 package CourseSelection
 import (
+    "fmt"
     "strconv"
     "net/http"
     "io/ioutil"
@@ -103,6 +104,8 @@ func LoginFunc(r *render.Render,store *sessions.CookieStore) ServePrimeFunc{
     return func (w http.ResponseWriter, req *http.Request){
         id := req.PostFormValue("UserID")
         pw := req.PostFormValue("UserPassword")
+        fmt.Println(id)
+        fmt.Println(pw)
         //TODO It should be a form value that come from the user request
         school := "DHU"
         DBsession := GetSession()
@@ -132,11 +135,11 @@ func validateLogin(id,pw,school string,cLogin *mgo.Collection) (flag bool){
             _,err := s.Login(s.LoginPara(id,pw))
             if err == nil{
                 flag = true
-            }
-            if findErr != nil{
-                cLogin.Insert(StudentInfo{id,pw,false})
-            }else{
-                cLogin.Update(bson.M{"studentid":id},bson.M{"$set":bson.M{"studentpw":pw,"pwnoteffective":false}})
+                if findErr != nil{
+                    cLogin.Insert(StudentInfo{id,pw,false})
+                }else{
+                    cLogin.Update(bson.M{"studentid":id},bson.M{"$set":bson.M{"studentpw":pw,"pwnoteffective":false}})
+                }
             }
         }
     }else{

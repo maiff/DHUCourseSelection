@@ -44,7 +44,7 @@
         - courseNo : 选课序号
         - courseName : 课程名称
         - teacherName : 教师姓名
-        - courseState : 课程状态(排队中 or 已选上 or 被取消)
+        - courseState : 课程状态(排队中->0 or 已选上->1 or 被取消->-1)
         - queueNumber : 排队序号
     - 备注 :
         - 如果返回的map中值为空,说明用户为注册过任何课程
@@ -56,7 +56,7 @@
     - 目的 : 用户可以删除申请过的课程
     - APIURL : /home/delete?courseNo=
     - 参数说明 :
-        - courseid : 被删除的选课编号
+        - courseNo : 被删除的选课编号
     - 只接受Post请求
     - 完成之后重新后端重定向到/home
 #### 用户选课界面

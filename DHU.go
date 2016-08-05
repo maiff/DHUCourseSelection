@@ -73,8 +73,8 @@ func (d *DHUStruct) Login(m map[string]string) (*http.Client,error){
     client := NewClient()
     res,err := sendRequest(DHUHostUrl + DHULoginUrl,m,client)
     if res != nil{
-        loc,_ := res.Location()
-        if loc.String() != DHULoginSuccessURL{
+        loc,rerr := res.Location()
+        if rerr != nil || loc.String() != DHULoginSuccessURL{
             err = passwordErr
         }
         res.Body.Close()
