@@ -1,0 +1,1 @@
+<h2>${home}<span><a href="#" class=${commonselect}>按选课序号选课</a><a href="#" class=${choose}>选课→</a></span></h2> 

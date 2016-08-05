@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>按选课序号选课</title>
+	<link rel="stylesheet" type="text/css" href="css/bootstrap-table.min.css"> 
+	<%include link %>
+</head>
+<body>
+<%include header{
+	isLogin:'向王涛',
+	index:'class="wi0"',
+	feedback:'class="wi0"',
+	login:'id="wi1"'
+} %>
+<%include secondarynav{
+	home:'请输入选课序号:',
+	commonselect:'active'
+} %>
+<div class="commonselect-input-container">
+	<input type="text" name="" value="14250" >
+	<input type="button" value="搜索">
+</div>
+<div class="table-container">
+	<table class="table table-striped">
+      <thead>
+        <tr>
+          <th>课程序号</th>
+          <th>选课序号</th>
+          <th>课程名称</th>
+          <th>教师姓名</th>
+          <th>课程状态</th>
+          <th>排队序号</th>
+          <th>选项</th>
+        </tr>
+      </thead>
+      <tbody>
+      <%include tablecell{status:'排队中',options:'选课',statusColor:'black'} %>
+      </tbody>
+     </table>
+</div>
+<%include footer %>	
+</body>
+<%include commonJs %>
+</html>

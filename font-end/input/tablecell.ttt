@@ -1,0 +1,9 @@
+<tr>
+          <th scope="row">14235</th>
+          <td>25213</td>
+          <td>高等数学</td>
+          <td>谭浩强</td>
+          <td class=${statusColor}>${status}</td>
+          <td>143</td>
+          <td><a href="#">${options}</a></td>
+</tr>

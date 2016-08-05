@@ -1,0 +1,16 @@
+<nav>
+<div id="logo">
+	<a href="#" class="dhu-jw">logo</a>
+</div>
+<ul id="navmenu">
+	<li><a href="index.html">首页
+		<em ${index}></em>
+	</a></li>
+	<li><a href="feedback.html">联系我们
+		<em ${feedback}></em>
+	</a></li>
+	<li><a href="login.html">${isLogin}
+		<em ${login}></em>
+	</a></li>
+</ul>
+</nav>

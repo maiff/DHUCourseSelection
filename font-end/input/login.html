@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<%include link %>
+</head>
+<body> 
+<%include header{
+	isLogin:'登录',
+	index:'class="wi0"',
+	feedback:'class="wi0"',
+	login:'id="wi1"'
+} %> 
+
+<div id="login">
+<div class="login-header">输入教务处账号密码登录</div>
+	<form method="post" action="http://182.254.129.42:8080/login">
+		<input type="text" placeholder="  用户名" name="UserID">
+		<input type="password" placeholder="  密码" name="UserPassword">
+		<input type="submit" value="登录" name="">
+	</form>
+</div>
+
+<%include footer %>
+</body>
+<%include commonJs %>
+
+</html>

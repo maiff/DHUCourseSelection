@@ -1,0 +1,262 @@
+@import "tool/base.scss";
+@import "tool/_size.scss";
+@import "tool/_center.scss";
+
+html,body{
+	font-family:$wryh;
+	
+	
+}
+@media  (max-width: 500px) {
+   	footer {
+        display: none;
+    }
+}
+nav{
+	position: fixed;
+    top: 0;
+    left: 0;
+   
+    background: #eee;
+    @include size(100%,55px);
+    
+    border-bottom: 1px solid #ddd;
+}
+
+#logo{
+	position: fixed;
+    
+    margin: 0;
+    padding: 5px 25px;
+    width: auto;
+    border-left: none;
+    .dhu-jw{
+		display: block;
+	    font: 30px "微软雅黑", "Open Sans", sans-serif;
+	    font-weight: 500;
+	    color: #444;
+	}
+}
+
+#navmenu{
+	padding: 0;
+    margin: 0;
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    padding-left: 5%;
+    z-index: 1000;
+    li{
+		list-style: none;
+	    padding: 0;
+	    float: left;
+	}
+	a{
+		position: relative;
+		font-weight: 600;
+		color: #666;
+	    margin: 0 50px;
+	    -webkit-font-smoothing: subpixel-antialiased;
+	}
+	em{
+		display: block;
+	    position: absolute;
+	    bottom: -6px;
+		left: 0;
+	    width: 100%;
+	    border-bottom: 1px solid #888;
+	    -webkit-transition: all .5s ease;
+	    transition: all .5s ease
+	}
+}
+
+
+
+ em.wi0{
+	width:0 !important;
+}
+
+ em#wi1{
+	width:100% !important;
+}	
+
+#description {
+    margin: 80px 10em 0 10em;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+	.xxx{
+	    display: block;
+	    font: 5em "微软雅黑", "Open Sans", sans-serif;
+	    font-weight: 500;
+	    color: #000;
+	    margin-bottom: .25em;
+	}
+	.description {
+	    position: relative;
+	    top: -5px;
+	    font-size: 4.2em;
+	    color: #aeaeae;
+	    line-height: 1.2;
+	    font-family: $wryh;
+	}
+}
+
+
+#panel-content{
+	margin-top:100px;
+	font-family:$wryh;
+	overflow:hidden;
+	padding-bottom: 50px;
+	dl{
+		float:left;
+		width: 20%;
+	    padding-left: 10%;
+	}
+	dt{
+		font-size:20px;
+		font-weight:500;
+		margin-bottom:10px;
+
+	}
+}
+
+
+
+
+footer{
+	@include size(100%,50px);
+	
+    clear:both;
+	line-height: 50px;
+	text-align: center;
+	
+}
+#login{
+	@include center();
+	@include size(250px,(35*6)px);
+	input{
+		margin-bottom: 35px;
+	}
+	input[type="submit"]{
+		background: #238efa;
+		color:#fff;
+		cursor: pointer;
+		font-size:15px;
+		&:hover{
+			background:$baseColor;
+		}
+
+	}
+	.login-header{
+		font-size: 40px;
+	    text-align: center;
+	    position: absolute;
+	    margin-top: -100px;
+	    width: 500px;
+	    margin-left: -50%;
+	}
+
+}
+input{
+	@include size(250px,35px);
+	border-radius:5px;
+	border:1px solid #aaa;
+	outline:none;
+	transition:all 0.3s;
+	&:focus{
+		border:1px solid #238efa;
+	}
+/*	&::-webkit-input-placeholder{
+
+		
+	}
+	&::-moz-placeholder{
+		margin-left: 10px;
+	}*/
+
+}
+#feedback{
+	margin: 100px 0 0 80px;
+	.header-feedback{
+		margin-bottom: 10px;
+		font-size: 25px;
+
+	}	
+	textarea{
+		border-radius: 5px;
+		border: 1px #bbb solid;
+		display: block;
+		margin-top: 35px;
+		@include size(600px,300px);
+	}
+	input[type="submit"]{
+		width: 70px;
+		margin-top: 35px;
+		background: #238efa;
+		color:#fff;
+		cursor: pointer;
+
+
+	}
+}
+
+
+//home
+$table_left_margin:30px;
+h2{
+	margin: 80px 0 0 $table_left_margin;
+	span{
+		float: right;
+		font-weight: normal ;
+		font-size:20px;
+		margin-right: $table_left_margin;
+		a{
+			margin-left: 20px;
+		}
+	}
+}
+.table-container{
+	margin: 0 $table_left_margin 0 $table_left_margin;
+	tr{
+		transition:all 0.3s;
+	}
+	.red{
+		color:red;
+	}
+	.green{
+		color: #00a741;
+	}
+}
+#table-container{
+	margin: 0 $table_left_margin 0 $table_left_margin;
+	background:#fff;
+	position:fixed;
+	display:none;
+	top:56px;
+	right:0;
+	left:0;
+	.table{
+		margin-bottom: 0;
+	}
+
+
+}
+.footer-fixed{
+	position:fixed;
+	bottom:0;
+
+}
+.active{
+	color:#000;
+	cursor:default;
+}
+.commonselect-input-container{
+	margin: 20px 0 0 30px;
+	input[type="button"]{
+		@include size(50px,35px);
+		background: #238efa;
+		color:#fff;
+		cursor: pointer;
+	}
+ 
+}
