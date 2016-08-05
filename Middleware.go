@@ -2,12 +2,15 @@ package CourseSelection
 import (
     "os"
     "log"
+    "time"
     "net/http"
-    "gopkg.in/mgo.v2"
     "github.com/urfave/negroni"
     "github.com/unrolled/render"
     "github.com/gorilla/context"
     "github.com/gorilla/sessions"
+)
+const (
+    timeoutErrMessage   =   ""
 )
 func RunFunc() {
     r := render.New()
@@ -15,12 +18,15 @@ func RunFunc() {
     n   := negroni.Classic()
     n.Use(negroni.HandlerFunc(CookieMiddleware(store)))
     n.Use(negroni.HandlerFunc(SetAllowOrigin()))
-    n.UseHandler(context.ClearHandler(mux))
+    timeourHandler := http.TimeoutHandler(context.ClearHandler(mux),time.Duration(3 * time.Second),timeoutErrMessage)
+    n.UseHandler(timeourHandler)
     //All the middlerware we used
     l := log.New(os.Stdout, "[negroni] ", 0)
     l.Printf("listening on :8080")
     server := http.Server{Addr:":8080",Handler:n}
     server.SetKeepAlivesEnabled(true)
+    MainMonitor()
+    InitCourseMap()
     l.Fatal(server.ListenAndServe())
 }
 

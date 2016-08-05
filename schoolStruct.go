@@ -7,18 +7,9 @@ import (
     "net/http/cookiejar"
 )
 const (
-    updateTime = 
+    updateTime = 12
     //
 )
-var (
-    errChan chan string
-)
-func getErrChan() chan string{
-    if errChan == nil{
-        errChan = make(chan string,50)
-    }
-    return errChan
-}
 type SchoolStruct struct{
     //    SchoolName string
     ErrChan     chan string
@@ -33,6 +24,7 @@ func NewClient() *http.Client{
     jar,_ := cookiejar.New(nil)
     return &http.Client{
         Jar:jar,
+        Timeout:time.Duration(10 * time.Second),
     }
 }
 func MakeParameters(para map[string]string) url.Values{

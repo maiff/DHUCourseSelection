@@ -1,6 +1,6 @@
 package CourseSelection
 import (
-    "sync"
+    "time"
     "errors"
     "strconv"
     "net/http"
@@ -21,13 +21,16 @@ const (
     DHUDefaultID        =   "141320131"
     DHUDefaultPW        =   "130681199507125816"
 )
-type DHUStruct() {
+const (
+    DHULoginSuccessURL  =   "http://jw.dhu.edu.cn/dhu/student/"
+)
+type DHUStruct struct {
     SchoolStruct
     SchoolName string
 }
 func NewDHUStruct() *DHUStruct{
     dhuStruct := &DHUStruct{SchoolName:"DHU",}
-    dhuStruct.SchoolStruct = {ErrChan : getErrChan(),Client : dhuStruct.defaultLogin()}
+    dhuStruct.SchoolStruct = SchoolStruct{ErrChan : getErrChan(),Client : dhuStruct.defaultLogin()}
     return dhuStruct
 }
 func (d *DHUStruct) LoginPara(para ...string) map[string]string{
@@ -70,6 +73,10 @@ func (d *DHUStruct) Login(m map[string]string) (*http.Client,error){
     client := NewClient()
     res,err := sendRequest(DHUHostUrl + DHULoginUrl,m,client)
     if res != nil{
+        loc,_ := res.Location()
+        if loc.String() != DHULoginSuccessURL{
+            err = passwordErr
+        }
         res.Body.Close()
     }
     return client,err
@@ -121,10 +128,19 @@ func sendRequest(url string,m map[string]string,client *http.Client) (*http.Resp
     isPost,err := checkPost(m)
     delete(m,"Action")
     if err == nil{
-        if isPost{
-            res,err = client.PostForm(url,MakeParameters(m))
-        }else{
-            res,err = client.Get(url + getParaString(m))
+        for i := 0;i < 3;i ++ {
+            if isPost{
+                res,err = client.PostForm(url,MakeParameters(m))
+            }else{
+                res,err = client.Get(url + getParaString(m))
+            }
+            if err == nil{
+                break
+            }
+            time.Sleep(time.Duration(i * 2 + 1) * time.Second)
+        }
+        if err != nil{
+            err = networkErr
         }
         return res,err
     }else{
@@ -136,11 +152,11 @@ func (d *DHUStruct) ValidateStuCourseSelected(courseid,courseNo string,client *h
     var res *http.Response
     var Done bool
     for i := 0; i < 3; i++ {
-        res,err := client.Get(DHUHostUrl + DHUSelectedUrl)
+        res,err = client.Get(DHUHostUrl + DHUSelectedUrl)
         if err == nil{
             break
         }else{
-            time.Sleep((i * 2 + 1) * time.Second)
+            time.Sleep(time.Duration(i * 2 + 1) * time.Second)
         }
     }
     if err != nil{
@@ -155,15 +171,15 @@ func (d *DHUStruct) ValidateStuCourseSelected(courseid,courseNo string,client *h
                 Done = true
             }
         }
-    }
+    })
     return Done
 }
-func (d *DHUStruct) UpdateClient() func() *http.Client{
+func (d *DHUStruct) UpdateClient() func() {
     var timeFroClient time.Time
     tickerForClient := time.NewTicker(time.Hour * updateTime)
     return func() {
         select{
-            case timeFroClient <- timerForClient.C:
+            case timeFroClient = <- tickerForClient.C:
                 newClient := d.defaultLogin()
                 d.mutexClient.Lock()
                 defer d.mutexClient.Unlock()

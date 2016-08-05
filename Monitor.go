@@ -1,9 +1,11 @@
 package CourseSelection
 import (
-    "fmt"
     "time"
+    "sync"
     "errors"
     "net/http"
+    "gopkg.in/mgo.v2"
+    "gopkg.in/mgo.v2/bson"
 )
 type Monitor interface{
     MonitorParameter
@@ -18,7 +20,7 @@ type MonitorParameter interface{
 type MonitorAction interface{
     Login(map[string]string) (*http.Client,error)
     // DefaultLogin() *http.Client
-    UpdateClient() func () *http.Client
+    UpdateClient() func ()
     // Delete(map[string]string,*http.Client) error
     Register(map[string]string,*http.Client) error
     Monitor(map[string]string) ([]string,error)
@@ -40,7 +42,7 @@ func MainMonitor() {
     var courseIsRun bool
     var newMessage [2]string
     for{
-        newMessage <- NotifyCourse
+        newMessage = <- NotifyCourse
         school = newMessage[0]
         courseid = newMessage[1]
         CourseMap[school][courseid].mutexBool.RLock()
@@ -62,7 +64,7 @@ func MonitorFunc(m Monitor,school,courseid string) {
         if err == nil{
             for _,courseno := range courselist{
                 wg.Add(1)
-                go registerFunc(m,school,courseno,&wg)
+                go registerFunc(m,school,courseid,courseno,&wg)
             }
             wg.Wait()
         }
@@ -70,10 +72,10 @@ func MonitorFunc(m Monitor,school,courseid string) {
             setcourseMap(school,courseid,false)
             return
         }
-        time.Sleep(SleepTime * time.Second)
+        time.Sleep(time.Duration(SleepTime) * time.Second)
     }
 }
-func registerFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
+func registerFunc(m Monitor,school,courseid,courseno string,wg *sync.WaitGroup) {
     defer wg.Done()
     var err error
     var stuInfo    StudentInfo
@@ -82,18 +84,18 @@ func registerFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
     defer DBsession.Close()
     cCourseSelector := DBsession.DB(school).C("CourseSelector")
     cLogin := DBsession.DB(school).C("StudentInfo")
-    err = cCourseSelector.Find(bson.M{"courseno":courseNo,"queuenum":1}).One(&courseInfo)
+    err = cCourseSelector.Find(bson.M{"courseno":courseno,"queuenum":1}).One(&courseInfo)
     if err == nil{
         err = cLogin.Find(bson.M{"studentid":courseInfo.StudentID}).One(&stuInfo)
         if err == nil{
-            if stuInfo.PWEffective{
+            if stuInfo.PWNotEffective{
                 return
             }
             client,err := m.Login(m.LoginPara(stuInfo.StudentID,stuInfo.StudentPW))
-            if checkLoginErr(err,cLogin){
+            if checkLoginErr(err,stuInfo.StudentID,cLogin){
                 return
             }
-            err = m.Register(m.RigisterPara(courseNo),client)
+            err = m.Register(m.RigisterPara(courseno),client)
             errflag,done := checkRegisterErr(err)
             if errflag{
                 return
@@ -119,8 +121,8 @@ func registerFunc(m Monitor,school,courseno string,wg *sync.WaitGroup) {
             //         m.RollBack(courseno,conflictCourse)
             //     }
             // }
-            if m.ValidateStuCourseSelected(courseid,courseNo,client){
-                alterDatabase(school,courseNo,courseInfo.StudentID,cCourseSelector)
+            if m.ValidateStuCourseSelected(courseid,courseno,client){
+                alterDatabase(school,courseno,courseInfo.StudentID,cCourseSelector)
             }else{
                 m.SetErrorMessage(selectErrStr + courseno)
             }
@@ -133,7 +135,8 @@ func DetectDatabase(school,courseid string) func () bool{
     cSelector := DBsession.DB(school).C("CourseSelector")
     if notFound{
         return func() bool{
-            return true
+            DBsession.Close()
+            return false
         }
     }else{
         return func() bool{
@@ -150,21 +153,22 @@ func DetectDatabase(school,courseid string) func () bool{
     }
 }
 func getCourselist(school,courseid string,s *mgo.Session) (courselist []string,notFound bool){
+    var course CourseContent
     cTable := s.DB(school).C("CourseTable")
     err := cTable.Find(bson.M{"courseid":courseid}).One(&course)
     if err != nil{
         notFound = true
     }else{
         for _,value := range course.CourseList{
-            courselist.append(courselist,value.CourseNo)
+            courselist = append(courselist,value.CourseNo)
         }
     }
     return
 }
 func alterDatabase(school,courseno,stuid string,cCourseSelector *mgo.Collection) {
-    err := cCourseSelector.Remove(bson.M{"courseno":courseNo,"queuenum":1})
+    err := cCourseSelector.Remove(bson.M{"courseno":courseno,"queuenum":1})
     if err == nil{
-        cCourseSelector.UpdateAll(bson.M{"courseno":courseNo},bson.M{"$inc":bson.M{"queuenum":-1}})
+        cCourseSelector.UpdateAll(bson.M{"courseno":courseno},bson.M{"$inc":bson.M{"queuenum":-1}})
         synchronizeDatabase(school,courseno,stuid)
     }
 }
@@ -172,7 +176,7 @@ func synchronizeDatabase(school,courseno,stuid string) {
     DBsession := GetSession()
     defer DBsession.Close()
     cRigister := DBsession.DB(school).C("RigisterInfo")
-    cRigister.UpdateAll(bson.M{"courselist.courseno":courseNo},bson.M{"$inc":bson.M{"courselist.queuenumber":-1}})
+    cRigister.UpdateAll(bson.M{"courselist.courseno":courseno},bson.M{"$inc":bson.M{"courselist.queuenumber":-1}})
 }
 func checkDeleteErr(err error) (flag,done bool) {
     //The same as checkRegisterErr
@@ -189,13 +193,13 @@ func checkRegisterErr(err error) (flag,done bool){
     }
     return
 }
-func checkLoginErr(err error,cLogin *mgo.Collection) (flag bool){
+func checkLoginErr(err error,stuid string,cLogin *mgo.Collection) (flag bool){
     switch err {
     case networkErr:
         flag = true
     case passwordErr:
         for{
-            err = cLogin.Update(bson.M{"studentid":courseInfo.StudentID},bson.M{"$set":bson.M{"pwnoteffective":true}})
+            err = cLogin.Update(bson.M{"studentid":stuid},bson.M{"$set":bson.M{"pwnoteffective":true}})
             if err == nil{
                 flag = true
                 break
