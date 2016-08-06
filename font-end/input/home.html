@@ -58,8 +58,8 @@
 <script type="text/javascript">
 	(function(){
 		
-		var recevie_data='{"RigisterCourse":[{"courseID":"131441","courseNo":"207911","courseName":"专业英语","teacherName":"李悦","courseState":0,"queueNumber":1},{"courseID":"130153","courseNo":"207933","courseName":"计算机网络","teacherName":"朱明","courseState":0,"queueNumber":1}]}';
-		var recevie_data_to_deal=JSON.parse(recevie_data).RigisterCourse;
+		
+		var recevie_data_to_deal='';
 		console.log(recevie_data_to_deal);
 
 		function deal_data_obj(obj){
@@ -84,17 +84,18 @@
 			return str;
 		}
 
-		$('.table-container table tbody').html(deal_data(recevie_data_to_deal));
+		
 
 
-		// $.ajax({
-  //               type: "post",
-  //               url: "home",
-  //               data: { "userstatus":0},
-  //               success: function (recevie_data) {
-  //               	recevie_data_to_deal=recevie_data;
-  //               }
-  //           });
+		$.ajax({
+                type: "post",
+                url: "home",
+                data: { "userstatus":0},
+                success: function (recevie_data) {
+                	recevie_data_to_deal=recevie_data.RigisterCourse;
+                	$('.table-container table tbody').html(deal_data(recevie_data_to_deal));
+                }
+            });
   		function deleteCourse(courseNo){
   			$.ajax({
                 type: "post",

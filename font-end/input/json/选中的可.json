@@ -1,0 +1,18 @@
+{
+	"RigisterCourse": [{
+		"courseID": "131441",
+		"courseNo": "207911",
+		"courseName": "专业英语",
+		"teacherName": "李悦",
+		"courseState": 0,
+		"queueNumber": 1
+	}, {
+		"courseID": "130153",
+		"courseNo": "207933",
+		"courseName": "计算机网络",
+		"teacherName": "朱明",
+		"courseState": 0,
+		"queueNumber": 1
+	}]
+}
+
